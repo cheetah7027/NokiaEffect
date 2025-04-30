@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nokia Effect - Retro Pixel Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        #uploadButton {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 20px 0;
+        }
+
+        #uploadButton:hover {
+            background-color: #45a049;
+        }
+
+        canvas {
+            max-width: 100%;
+            margin: 20px 0;
+            background-color: #94C071;
+            border: 1px solid #ddd;
+        }
+
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #downloadButton {
+            background-color: #2196F3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 20px 0;
+        }
+
+        #downloadButton:hover {
+            background-color: #1976D2;
+        }
+
+        .control-label {
+            min-width: 100px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Nokia Effect</h1>
+        <input type="file" id="imageInput" accept="image/*" style="display: none;">
+        <button id="uploadButton">Upload Image</button>
+        <div class="controls">
+            <div class="control-group">
+                <span class="control-label">Pixel Size:</span>
+                <input type="range" id="pixelSize" min="2" max="20" value="8">
+                <span id="pixelSizeValue">8</span>
+            </div>
+            <div class="control-group">
+                <span class="control-label">Contrast:</span>
+                <input type="range" id="contrast" min="0" max="200" value="100">
+                <span id="contrastValue">100</span>
+            </div>
+            <div class="control-group">
+                <span class="control-label">Brightness:</span>
+                <input type="range" id="brightness" min="0" max="200" value="100">
+                <span id="brightnessValue">100</span>
+            </div>
+            <div class="control-group">
+                <span class="control-label">Threshold:</span>
+                <input type="range" id="threshold" min="0" max="255" value="128">
+                <span id="thresholdValue">128</span>
+            </div>
+        </div>
+        <canvas id="outputCanvas"></canvas>
+        <button id="downloadButton">Download Image</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('outputCanvas');
+        const ctx = canvas.getContext('2d');
+        const uploadButton = document.getElementById('uploadButton');
+        const downloadButton = document.getElementById('downloadButton');
+        const imageInput = document.getElementById('imageInput');
+        const pixelSizeSlider = document.getElementById('pixelSize');
+        const contrastSlider = document.getElementById('contrast');
+        const brightnessSlider = document.getElementById('brightness');
+        const thresholdSlider = document.getElementById('threshold');
+        
+        let currentImage = null;
+
+        // Update value displays
+        function updateValue(slider, valueSpan) {
+            valueSpan.textContent = slider.value;
+        }
+
+        // Add event listeners for all controls
+        const controls = {
+            'pixelSize': document.getElementById('pixelSizeValue'),
+            'contrast': document.getElementById('contrastValue'),
+            'brightness': document.getElementById('brightnessValue'),
+            'threshold': document.getElementById('thresholdValue')
+        };
+
+        Object.entries(controls).forEach(([id, valueSpan]) => {
+            const slider = document.getElementById(id);
+            slider.addEventListener('input', () => {
+                updateValue(slider, valueSpan);
+                if (currentImage) {
+                    pixelateImage(currentImage);
+                }
+            });
+        });
+
+        uploadButton.addEventListener('click', () => {
+            imageInput.click();
+        });
+
+        downloadButton.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'pixel-art.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+
+        imageInput.addEventListener('change', handleImage);
+
+        function handleImage(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    currentImage = img;
+                    pixelateImage(img);
+                }
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function pixelateImage(img) {
+            const basePixelSize = parseInt(pixelSizeSlider.value);
+            const contrast = parseInt(contrastSlider.value) / 100;
+            const brightness = parseInt(brightnessSlider.value) / 100;
+            const threshold = parseInt(thresholdSlider.value);
+            
+            const aspectRatio = img.width / img.height;
+            const maxWidth = 800;
+            const maxHeight = 600;
+            
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > maxWidth) {
+                width = maxWidth;
+                height = width / aspectRatio;
+            }
+            if (height > maxHeight) {
+                height = maxHeight;
+                width = height * aspectRatio;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            // Set Nokia screen green background
+            ctx.fillStyle = '#94C071';
+            ctx.fillRect(0, 0, width, height);
+
+            // Ensure crisp pixel rendering
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            tempCtx.imageSmoothingEnabled = false;
+            tempCtx.putImageData(imageData, 0, 0);
+
+            // Clear main canvas
+            // Set Nokia screen green background
+            ctx.fillStyle = '#94C071';
+            ctx.fillRect(0, 0, width, height);
+
+            // Enhanced Bayer matrix for better dithering
+            const bayer = [
+                [0, 8, 2, 10],
+                [12, 4, 14, 6],
+                [3, 11, 1, 9],
+                [15, 7, 13, 5]
+            ];
+
+            const bayerSize = 4;
+            const bayerDivisor = 16;
+
+            for (let y = 0; y < height; y += basePixelSize) {
+                for (let x = 0; x < width; x += basePixelSize) {
+                    const pixelData = tempCtx.getImageData(x, y, basePixelSize, basePixelSize).data;
+                    let totalBrightness = 0;
+                    let pixelCount = 0;
+
+                    // Enhanced brightness calculation
+                    for (let i = 0; i < pixelData.length; i += 4) {
+                        const r = pixelData[i] * brightness;
+                        const g = pixelData[i + 1] * brightness;
+                        const b = pixelData[i + 2] * brightness;
+                        // Weighted RGB for better contrast
+                        const avgColor = (r * 0.3 + g * 0.59 + b * 0.11);
+                        totalBrightness += avgColor;
+                        pixelCount++;
+                    }
+
+                    const avgBrightness = totalBrightness / pixelCount;
+                    // Enhanced contrast adjustment
+                    const contrastedBrightness = Math.min(255, Math.max(0, 
+                        ((avgBrightness - 128) * (contrast * 2)) + 128
+                    ));
+
+                    // Apply dithering with enhanced pattern
+                    const bayerX = (x / basePixelSize) % bayerSize;
+                    const bayerY = (y / basePixelSize) % bayerSize;
+                    const ditherValue = (bayer[bayerY][bayerX] / bayerDivisor) * 255 * 0.5;
+
+                    if (contrastedBrightness < threshold + ditherValue) {
+                        ctx.fillStyle = '#000000';
+                        // Draw pixel filling the entire block to remove spacing
+                        ctx.fillRect(x, y, basePixelSize, basePixelSize);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
